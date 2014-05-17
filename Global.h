@@ -1,7 +1,7 @@
 #ifndef _TYPESTATUS_GLOBAL_H
 #define _TYPESTATUS_GLOBAL_H
 
-@class HBTSStatusBarView;
+@class HBTSStatusBarWindow;
 
 #ifndef SPRINGBOARD
 #define SPRINGBOARD 0
@@ -15,11 +15,11 @@
 #define PREFERENCES 0
 #endif
 
-typedef enum {
+typedef NS_ENUM(NSUInteger, HBTSStatusBarType) {
 	HBTSStatusBarTypeTyping,
 	HBTSStatusBarTypeTypingEnded,
 	HBTSStatusBarTypeRead
-} HBTSStatusBarType;
+};
 
 #if SPRINGBOARD
 void HBTSPostMessage(HBTSStatusBarType type, NSString *string, BOOL typing);
@@ -56,8 +56,6 @@ static NSString *const kHBTSMessageSendDateKey = @"Date";
 #pragma mark - Preferences
 
 BOOL firstLoad = YES;
-BOOL overlaySlide = YES;
-BOOL overlayFade = YES;
 CGFloat overlayDuration = 5.f;
 BOOL typingStatus = YES;
 BOOL typingTimeout = NO;
@@ -72,7 +70,7 @@ BOOL useBulletin = YES;
 #endif
 
 #if !SPRINGBOARD && !IMAGENT
-HBTSStatusBarView *overlayView;
+HBTSStatusBarWindow *overlayWindow;
 #endif
 #endif
 #endif

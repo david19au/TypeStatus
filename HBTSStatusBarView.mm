@@ -1,5 +1,6 @@
 #include <substrate.h> // ?!!?
 #import "HBTSStatusBarView.h"
+#import "HBTSStatusBarWindow.h"
 #import <UIKit/UIApplication+Private.h>
 #import <UIKit/UIImage+Private.h>
 #import <UIKit/UIKitModernUI.h>
@@ -14,9 +15,6 @@
 ;
 
 static CGFloat const kHBTSStatusBarFontSize = IS_MODERN ? 12.f : 14.f;
-static NSTimeInterval const kHBTSStatusBarAnimationDuration = 0.25;
-static CGFloat const kHBTSStatusBarAnimationDamping = 1.f;
-static CGFloat const kHBTSStatusBarAnimationVelocity = 1.f;
 
 @interface HBTSStatusBarView () {
 	UIView *_containerView;
@@ -24,15 +22,7 @@ static CGFloat const kHBTSStatusBarAnimationVelocity = 1.f;
 	UILabel *_contactLabel;
 	UIImageView *_iconImageView;
 
-	BOOL _isAnimating;
-	BOOL _isVisible;
-	NSTimer *_timer;
 	HBTSStatusBarType _type;
-
-
-	CGFloat _foregroundViewAlpha;
-	CGFloat _statusBarHeight;
-	BOOL _statusBarWasHidden;
 }
 
 @end
@@ -47,30 +37,27 @@ static CGFloat const kHBTSStatusBarAnimationVelocity = 1.f;
 	if (self) {
 		self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 		self.clipsToBounds = NO;
-		self.hidden = YES;
-
-		_foregroundViewAlpha = 0;
-		_statusBarHeight = frame.size.height;
-		_isFirstTime = YES;
 
 		_containerView = [[UIView alloc] initWithFrame:self.frame];
-		_containerView.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
+		_containerView.autoresizingMask = UIViewAutoresizingFlexibleHeight | UIViewAutoresizingFlexibleLeftMargin | UIViewAutoresizingFlexibleRightMargin;
 		[self addSubview:_containerView];
 
 		_iconImageView = [[[UIImageView alloc] initWithImage:[UIImage kitImageNamed:@"WhiteOnBlackEtch_TypeStatus"]] autorelease];
-		_iconImageView.center = CGPointMake(_iconImageView.center.x, self.frame.size.height / 2);
+		_iconImageView.center = CGPointMake(_iconImageView.center.x, (self.frame.size.height - 2.f) / 2);
 		_iconImageView.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleBottomMargin;
 		[_containerView addSubview:_iconImageView];
 
 		CGFloat top = IS_RETINA ? -0.5f : -1.f;
 
 		_typeLabel = [[UILabel alloc] initWithFrame:CGRectMake(_iconImageView.frame.size.width + 4.f, top, 0, self.frame.size.height)];
+		_typeLabel.autoresizingMask = UIViewAutoresizingFlexibleHeight;
 		_typeLabel.font = [UIFont boldSystemFontOfSize:kHBTSStatusBarFontSize];
 		_typeLabel.backgroundColor = [UIColor clearColor];
 		_typeLabel.textColor = [UIColor whiteColor];
 		[_containerView addSubview:_typeLabel];
 
 		_contactLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, top, 0, self.frame.size.height)];
+		_contactLabel.autoresizingMask = UIViewAutoresizingFlexibleHeight;
 		_contactLabel.font = [UIFont systemFontOfSize:kHBTSStatusBarFontSize];
 		_contactLabel.backgroundColor = [UIColor clearColor];
 		_contactLabel.textColor = [UIColor whiteColor];
@@ -112,13 +99,6 @@ static CGFloat const kHBTSStatusBarAnimationVelocity = 1.f;
 		if (IS_MODERN) {
 			UIImage *typingImage = [[UIImage kitImageNamed:@"Black_TypeStatus"] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
 			UIImage *readImage = [[UIImage kitImageNamed:@"Black_TypeStatusRead"] imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-
-			/*
-			if (_UIApplicationUsesLegacyUI()) {
-				typingImage = [self _whiteIconForLegacyUI:typingImage];
-				readImage = [self _whiteIconForLegacyUI:readImage];
-			}
-			*/
 
 			TypingImage = [typingImage retain];
 			ReadImage = [readImage retain];
@@ -179,15 +159,12 @@ static CGFloat const kHBTSStatusBarAnimationVelocity = 1.f;
 		_typeLabel.shadowOffset = shadowOffset;
 		_contactLabel.shadowOffset = shadowOffset;
 	}
-
-	_previousStatusBarStyle = [UIApplication sharedApplication].statusBarStyle;
 }
 
 #pragma mark - Show/hide
 
-- (void)showWithType:(HBTSStatusBarType)type name:(NSString *)name timeout:(NSTimeInterval)timeout {
+- (void)setType:(HBTSStatusBarType)type name:(NSString *)name {
 	if (type == HBTSStatusBarTypeTypingEnded) {
-		[self hide];
 		return;
 	}
 
@@ -210,203 +187,7 @@ static CGFloat const kHBTSStatusBarAnimationVelocity = 1.f;
 
 	[self _updateForCurrentStatusBarStyle];
 	[self layoutSubviews];
-
-	if (_isAnimating || _isVisible) {
-		return;
-	}
-
-	if (_timer) {
-		[_timer invalidate];
-		[_timer release];
-
-		_timer = [[NSTimer scheduledTimerWithTimeInterval:timeout target:self selector:@selector(hide) userInfo:nil repeats:NO] retain];
-
-		return;
-	}
-
-	if (IN_SPRINGBOARD) {
-		notify_post("ws.hbang.typestatus/OverlayWillShow");
-	}
-
-	UIStatusBarForegroundView *foregroundView = MSHookIvar<UIStatusBarForegroundView *>([UIApplication sharedApplication].statusBar, "_foregroundView");
-
-	if (_foregroundViewAlpha == 0) {
-		_foregroundViewAlpha = foregroundView.alpha;
-	}
-
-	_isAnimating = YES;
-	_isVisible = YES;
-
-	self.alpha = _foregroundViewAlpha;
-	self.hidden = NO;
-	self.frame = foregroundView.frame;
-
-	void (^animationBlock)() = ^{
-		if (_shouldSlide) {
-			CGRect frame = self.frame;
-			frame.origin.y = 0;
-			self.frame = frame;
-
-			foregroundView.clipsToBounds = YES;
-
-			CGRect foregroundFrame = foregroundView.frame;
-			foregroundFrame.origin.y = _statusBarHeight;
-			foregroundFrame.size.height = 0;
-			foregroundView.frame = foregroundFrame;
-		}
-
-		self.alpha = _foregroundViewAlpha;
-
-		if (_shouldFade) {
-			foregroundView.alpha = 0;
-		}
-	};
-
-	void (^completionBlock)(BOOL finished) = ^(BOOL finished) {
-		_isAnimating = NO;
-		_timer = [[NSTimer scheduledTimerWithTimeInterval:timeout target:self selector:@selector(hide) userInfo:nil repeats:NO] retain];
-	};
-
-	if (![UIApplication sharedApplication].statusBarHidden && (_shouldSlide || _shouldFade)) {
-		CGRect frame = foregroundView.frame;
-		frame.origin.y = _shouldSlide ? -_statusBarHeight : 0;
-		self.frame = frame;
-
-		if (_shouldFade) {
-			self.alpha = 0;
-		}
-
-		[UIView animateWithDuration:kHBTSStatusBarAnimationDuration animations:animationBlock completion:completionBlock];
-	} else {
-		if ([UIApplication sharedApplication].statusBarHidden && !IN_SPRINGBOARD) {
-			foregroundView.clipsToBounds = YES;
-
-			CGRect foregroundFrame = foregroundView.frame;
-			foregroundFrame.origin.y = _statusBarHeight;
-			foregroundFrame.size.height = 0;
-			foregroundView.frame = foregroundFrame;
-
-			UIStatusBarAnimation animation = UIStatusBarAnimationNone;
-
-			if (_shouldSlide) {
-				animation = UIStatusBarAnimationSlide;
-			} else if (_shouldFade) {
-				animation = UIStatusBarAnimationFade;
-			}
-
-			[[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:animation];
-
-			_statusBarWasHidden = YES;
-			_previousStatusBarStyle = [UIApplication sharedApplication].statusBarStyle;
-
-			[UIApplication sharedApplication].statusBarStyle = UIStatusBarStyleBlackTranslucent;
-
-			if (_foregroundViewAlpha == 0) {
-				_foregroundViewAlpha = foregroundView.alpha;
-			}
-
-			self.alpha = _foregroundViewAlpha == 0 ? 1.f : _foregroundViewAlpha;
-		}
-
-		foregroundView.hidden = YES;
-		self.hidden = NO;
-		completionBlock(YES);
-	}
 }
-
-- (void)hide {
-	if (!_timer || _isAnimating || !_isVisible) {
-		return;
-	}
-
-	_isAnimating = YES;
-
-	[_timer invalidate];
-	[_timer release];
-	_timer = nil;
-
-	UIStatusBarForegroundView *foregroundView = MSHookIvar<UIStatusBarForegroundView *>([UIApplication sharedApplication].statusBar, "_foregroundView");
-
-	void (^animationBlock)() = ^{
-		if (_shouldSlide) {
-			CGRect frame = self.frame;
-			frame.origin.y = -_statusBarHeight;
-			self.frame = frame;
-		}
-
-		CGRect foregroundFrame = foregroundView.frame;
-		foregroundFrame.origin.y = 0;
-		foregroundFrame.size.height = _statusBarHeight;
-		foregroundView.frame = foregroundFrame;
-
-		self.alpha = 0;
-		foregroundView.alpha = _foregroundViewAlpha;
-	};
-
-	void (^completionBlock)(BOOL finished) = ^(BOOL finished) {
-		self.hidden = YES;
-		self.frame = foregroundView.frame;
-		self.alpha = _foregroundViewAlpha;
-
-		foregroundView.clipsToBounds = NO;
-
-		_typeLabel.text = @"";
-		_contactLabel.text = @"";
-
-		_isAnimating = NO;
-		_isVisible = NO;
-
-		if (IN_SPRINGBOARD) {
-			notify_post("ws.hbang.typestatus/OverlayDidHide");
-		}
-	};
-
-	if (_statusBarWasHidden) {
-		_statusBarWasHidden = NO;
-
-		if (![UIApplication sharedApplication].statusBarHidden) {
-			UIStatusBarAnimation animation = UIStatusBarAnimationNone;
-
-			if (_shouldSlide) {
-				animation = UIStatusBarAnimationSlide;
-			} else if (_shouldFade) {
-				animation = UIStatusBarAnimationFade;
-			}
-
-			[[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:animation];
-		}
-
-		if ([UIApplication sharedApplication].statusBarStyle == UIStatusBarStyleBlackTranslucent && [UIApplication sharedApplication].statusBarStyle != _previousStatusBarStyle) {
-			[[UIApplication sharedApplication] setStatusBarStyle:_previousStatusBarStyle animated:YES];
-		}
-	}
-
-	if (![UIApplication sharedApplication].statusBarHidden && (_shouldSlide || _shouldFade)) {
-		[UIView animateWithDuration:kHBTSStatusBarAnimationDuration animations:animationBlock completion:completionBlock];
-	} else {
-		foregroundView.hidden = NO;
-		completionBlock(YES);
-	}
-}
-
-/*
-#pragma mark - Get white icon
-
-- (UIImage *)_whiteIconForLegacyUI:(UIImage *)image {
-	CGRect rect = (CGRect){ CGPointZero, image.size };
-
-	UIGraphicsBeginImageContextWithOptions(image.size, NO, 0.f);
-
-	[[UIColor whiteColor] set];
-	UIRectFill(rect);
-	[image drawInRect:rect blendMode:kCGBlendModeDestinationIn alpha:1.f];
-
-	UIImage *result = UIGraphicsGetImageFromCurrentImageContext();
-	UIGraphicsEndImageContext();
-
-	return result;
-}
-*/
 
 #pragma mark - Memory management
 
@@ -415,7 +196,6 @@ static CGFloat const kHBTSStatusBarAnimationVelocity = 1.f;
 	[_typeLabel release];
 	[_contactLabel release];
 	[_iconImageView release];
-	[_timer release];
 
 	[super dealloc];
 }

@@ -15,7 +15,7 @@ TypeStatus_LDFLAGS = -fobjc-arc
 TypeStatusRelay_FILES = IMAgentRelay.x
 TypeStatusRelay_LDFLAGS = -fobjc-arc
 
-TypeStatusClient_FILES = Client.xmi
+TypeStatusClient_FILES = Client.xmi HBTSStatusBarWindow.mm
 TypeStatusClient_FRAMEWORKS = UIKit CoreGraphics
 TypeStatusClient_CFLAGS = -Qunused-arguments
 TypeStatusClient_LDFLAGS = -fobjc-arc

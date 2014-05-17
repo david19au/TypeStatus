@@ -1,9 +1,8 @@
 #include "Global.xm"
-#include "HBTSStatusBarView.mm"
+#include "HBTSStatusBarView.mm" // for now...
 
+#import "HBTSStatusBarWindow.h"
 #import <Foundation/NSDistributedNotificationCenter.h>
-#import <UIKit/UIApplication+Private.h>
-#import <UIKit/UIStatusBarForegroundView.h>
 
 #pragma mark - Constructor
 
@@ -13,10 +12,7 @@
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)HBTSLoadPrefs, CFSTR("ws.hbang.typestatus/ReloadPrefs"), NULL, 0);
 
 	[[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidFinishLaunchingNotification object:nil queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification *notification) {
-		UIStatusBarForegroundView *foregroundView = MSHookIvar<UIStatusBarForegroundView *>([UIApplication sharedApplication].statusBar, "_foregroundView");
-
-		overlayView = [[HBTSStatusBarView alloc] initWithFrame:foregroundView.frame];
-		[[UIApplication sharedApplication].statusBar addSubview:overlayView];
+		overlayWindow = [[HBTSStatusBarWindow alloc] init];
 
 		HBTSLoadPrefs();
 
@@ -27,7 +23,7 @@
 				return;
 			}
 
-			[overlayView showWithType:(HBTSStatusBarType)((NSNumber *)notification.userInfo[kHBTSMessageTypeKey]).intValue name:notification.userInfo[kHBTSMessageSenderKey] timeout:typing && !typingTimeout ? kHBTSTypingTimeout : overlayDuration];
+			[overlayWindow showWithType:(HBTSStatusBarType)((NSNumber *)notification.userInfo[kHBTSMessageTypeKey]).intValue name:notification.userInfo[kHBTSMessageSenderKey] timeout:typing && !typingTimeout ? kHBTSTypingTimeout : overlayDuration];
 		}];
 	}];
 }
