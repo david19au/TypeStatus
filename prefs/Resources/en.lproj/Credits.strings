@@ -3,18 +3,18 @@
 <plist version="1.0">
 <dict>
 	<key>Being Awesome</key>
-	<string>Being Awesome</string>
+	<string>Být úžasný</string>
 	<key>Icons</key>
-	<string>Icons</string>
+	<string>Ikony</string>
 	<key>Idea</key>
-	<string>Idea</string>
+	<string>Nápad</string>
 	<key>Lead Developer</key>
-	<string>Lead Developer</string>
+	<string>Hlavní vývojář</string>
 	<key>Thank you to the following people for contributing to TypeStatus.</key>
-	<string>Thank you to the following people for contributing to TypeStatus.</string>
+	<string>Děkujeme těmto lidem za přispívání do projektu TypeStatus.</string>
 	<key>Translations</key>
-	<string>Translations</string>
+	<string>Překlady</string>
 	<key>…and our beta testers and users. You guys rock!</key>
-	<string>…and our beta testers and users. You guys rock!</string>
+	<string>...a naše betatestery a uživatele. Děkujeme Vám a zůstaňte skvělými!</string>
 </dict>
 </plist>
